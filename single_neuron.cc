@@ -118,22 +118,30 @@ int main(int argc, char *argv[]) {
     Ipv4InterfaceContainer interfaces24 = address.Assign(devices24);
 
     uint16_t receiver_port = 9;
-    UdpClientHelper client0(interfaces02.GetAddress(1), receiver_port);
-    client0.SetAttribute("MaxPackets", UintegerValue(30));
-    client0.SetAttribute("Interval", TimeValue(Seconds(1.0)));
-    client0.SetAttribute("PacketSize", UintegerValue(1024));
-    ApplicationContainer clientApps0 = client0.Install(nodes.Get(0));
+
+    // Set up OnOffHelper for node 0
+    OnOffHelper onOff0("ns3::UdpSocketFactory", Address(InetSocketAddress(interfaces02.GetAddress(1), receiver_port)));
+    onOff0.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
+    onOff0.SetAttribute("OffTime", StringValue("ns3::ExponentialRandomVariable[Mean=1.5]"));
+    onOff0.SetAttribute("PacketSize", UintegerValue(1024));
+    onOff0.SetAttribute("DataRate", StringValue("500Kbps"));
+
+    ApplicationContainer clientApps0 = onOff0.Install(nodes.Get(0));
     clientApps0.Start(Seconds(1.0));
     clientApps0.Stop(Seconds(30.0));
 
-    UdpClientHelper client1(interfaces12.GetAddress(1), receiver_port);
-    client1.SetAttribute("MaxPackets", UintegerValue(30));
-    client1.SetAttribute("Interval", TimeValue(Seconds(1.0)));
-    client1.SetAttribute("PacketSize", UintegerValue(1024));
-    ApplicationContainer clientApps1 = client1.Install(nodes.Get(1));
+    // Set up OnOffHelper for node 1
+    OnOffHelper onOff1("ns3::UdpSocketFactory", Address(InetSocketAddress(interfaces12.GetAddress(1), receiver_port)));
+    onOff1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
+    onOff1.SetAttribute("OffTime", StringValue("ns3::ExponentialRandomVariable[Mean=1.5]"));
+    onOff1.SetAttribute("PacketSize", UintegerValue(1024));
+    onOff1.SetAttribute("DataRate", StringValue("500Kbps"));
+
+    ApplicationContainer clientApps1 = onOff1.Install(nodes.Get(1));
     clientApps1.Start(Seconds(1.0));
     clientApps1.Stop(Seconds(30.0));
 
+    // Set up RespondingApp for node 2
     Ptr<RespondingApp> app = CreateObject<RespondingApp>();
     app->AddLocalPort(receiver_port);
     app->AddPeerAddress(InetSocketAddress(interfaces23.GetAddress(1), receiver_port)); //InetSocketAddress(interfaces12.GetAddress(1), port)
@@ -142,7 +150,7 @@ int main(int argc, char *argv[]) {
     app->SetStopTime(Seconds(30.0));
     nodes.Get(2)->AddApplication(app);
 
-    AnimationInterface anim("./scratch/detector.xml");
+    AnimationInterface anim("./scratch/single_neuron.xml");
     anim.SetConstantPosition(nodes.Get(0), 20, 20);
     anim.SetConstantPosition(nodes.Get(1), 20, 80);
     anim.SetConstantPosition(nodes.Get(2), 50, 50);
