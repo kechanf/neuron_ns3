@@ -15,7 +15,7 @@ NS_LOG_COMPONENT_DEFINE("Simulation");
 
 class RespondingApp : public Application {
 public:
-    RespondingApp() : m_socket(0), m_packetSize(1024), m_localPort(0) {}
+    RespondingApp() : m_socket(0), m_packetSize(1024), m_localPort(0),  m_totalRx(0), m_threshold(2048) {}
     virtual ~RespondingApp() {}
 
     void Setup(uint16_t localPort, Address peerAddress) {
@@ -44,9 +44,12 @@ protected:
     void HandleRead(Ptr<Socket> socket) {
         Ptr<Packet> packet;
         while ((packet = socket->Recv())) {
-            std::cout << "Received packet of size " << packet->GetSize() << " bytes" << std::endl;
-            if (packet->GetSize() > 0) {
+            uint32_t packetSize = packet->GetSize();
+            m_totalRx += packetSize;
+            std::cout << "Received packet of size " << packetSize << " bytes, total received: " << m_totalRx << " bytes" << std::endl;
+            if (m_totalRx >= m_threshold) {
                 SendFeedback();
+                m_totalRx = 0;  // Reset the counter after sending feedback
             }
         }
     }
@@ -67,6 +70,9 @@ private:
     Address m_peerAddress;
     uint32_t m_packetSize;
     uint16_t m_localPort;
+
+    uint32_t m_totalRx;  // Total bytes received
+    uint32_t m_threshold;  // Threshold in bytes to send feedback
 };
 
 int main(int argc, char *argv[]) {
