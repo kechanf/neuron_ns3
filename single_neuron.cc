@@ -26,6 +26,14 @@ public:
         m_peerAddresses.push_back(peerAddress);
     }
 
+    void SetPacketSize(uint32_t packetSize) {
+        m_packetSize = packetSize;
+    }
+
+    void SetThreshold(uint32_t threshold) {
+        m_threshold = threshold;
+    }
+
 protected:
     virtual void StartApplication() override {
         for (uint16_t port : m_localPorts) {
