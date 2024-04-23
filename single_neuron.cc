@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
     Time::SetResolution(Time::NS);
 
     NodeContainer nodes;
-    nodes.Create(5);  // Now creating five nodes
+    nodes.Create(6);  // Now creating five nodes
 
     PointToPointHelper pointToPoint;
     pointToPoint.SetDeviceAttribute("DataRate", StringValue("5Mbps"));
@@ -101,8 +101,14 @@ int main(int argc, char *argv[]) {
     // Create point-to-point links
     NetDeviceContainer devices02 = pointToPoint.Install(nodes.Get(0), nodes.Get(2));
     NetDeviceContainer devices12 = pointToPoint.Install(nodes.Get(1), nodes.Get(2));
-    NetDeviceContainer devices23 = pointToPoint.Install(nodes.Get(2), nodes.Get(3));
-    NetDeviceContainer devices24 = pointToPoint.Install(nodes.Get(2), nodes.Get(4));
+    NetDeviceContainer devices25 = pointToPoint.Install(nodes.Get(2), nodes.Get(5));
+    NetDeviceContainer devices53 = pointToPoint.Install(nodes.Get(5), nodes.Get(3));
+    NetDeviceContainer devices54 = pointToPoint.Install(nodes.Get(5), nodes.Get(4));
+    /*
+    0 -- |    | -- 3
+         2 -- 5
+    1 -- |    | -- 4
+    */
 
     InternetStackHelper stack;
     stack.Install(nodes);
@@ -113,9 +119,12 @@ int main(int argc, char *argv[]) {
     address.SetBase("10.1.2.0", "255.255.255.0");
     Ipv4InterfaceContainer interfaces12 = address.Assign(devices12);
     address.SetBase("10.1.3.0", "255.255.255.0");
-    Ipv4InterfaceContainer interfaces23 = address.Assign(devices23);
+    Ipv4InterfaceContainer interfaces25 = address.Assign(devices25);
     address.SetBase("10.1.4.0", "255.255.255.0");
-    Ipv4InterfaceContainer interfaces24 = address.Assign(devices24);
+    Ipv4InterfaceContainer interfaces53 = address.Assign(devices53);
+    address.SetBase("10.1.5.0", "255.255.255.0");
+    Ipv4InterfaceContainer interfaces54 = address.Assign(devices54);
+
 
     uint16_t receiver_port = 9;
 
@@ -142,20 +151,29 @@ int main(int argc, char *argv[]) {
     clientApps1.Stop(Seconds(30.0));
 
     // Set up RespondingApp for node 2
-    Ptr<RespondingApp> app = CreateObject<RespondingApp>();
-    app->AddLocalPort(receiver_port);
-    app->AddPeerAddress(InetSocketAddress(interfaces23.GetAddress(1), receiver_port)); //InetSocketAddress(interfaces12.GetAddress(1), port)
-    app->AddPeerAddress(InetSocketAddress(interfaces24.GetAddress(1), receiver_port));
-    app->SetStartTime(Seconds(1.0));
-    app->SetStopTime(Seconds(30.0));
-    nodes.Get(2)->AddApplication(app);
+    Ptr<RespondingApp> app2 = CreateObject<RespondingApp>();
+    app2->AddLocalPort(receiver_port);
+    app2->AddPeerAddress(InetSocketAddress(interfaces25.GetAddress(1), receiver_port)); //InetSocketAddress(interfaces12.GetAddress(1), port)
+    app2->SetStartTime(Seconds(1.0));
+    app2->SetStopTime(Seconds(30.0));
+    nodes.Get(2)->AddApplication(app2);
+
+    // Set up OnOffHelper for node 5
+    Ptr<RespondingApp> app5 = CreateObject<RespondingApp>();
+    app5->AddLocalPort(receiver_port);
+    app5->AddPeerAddress(InetSocketAddress(interfaces53.GetAddress(1), receiver_port));
+    app5->AddPeerAddress(InetSocketAddress(interfaces54.GetAddress(1), receiver_port));
+    app5->SetStartTime(Seconds(1.0));
+    app5->SetStopTime(Seconds(30.0));
+    nodes.Get(5)->AddApplication(app5);
 
     AnimationInterface anim("./scratch/single_neuron.xml");
     anim.SetConstantPosition(nodes.Get(0), 20, 20);
     anim.SetConstantPosition(nodes.Get(1), 20, 80);
-    anim.SetConstantPosition(nodes.Get(2), 50, 50);
+    anim.SetConstantPosition(nodes.Get(2), 40, 50);
     anim.SetConstantPosition(nodes.Get(3), 80, 20);
     anim.SetConstantPosition(nodes.Get(4), 80, 80);
+    anim.SetConstantPosition(nodes.Get(5), 60, 50);
 
     Simulator::Run();
     Simulator::Destroy();
