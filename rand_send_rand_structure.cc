@@ -7,6 +7,11 @@
 #include "ns3/random-variable-stream.h"
 #include "ns3/mobility-module.h"
 
+/*
+This simple test model simulates a random network with 10% of possible connections being created.
+Each node(neuron) has a 50% probability of sending a spiking(Data packet) from itself. And
+after receiving 4 spiking, it sends a spiking to all downstream neurons. (Loops/isolated node may exist)
+*/
 
 using namespace ns3;
 NS_LOG_COMPONENT_DEFINE("SequentialUdpCommunication");

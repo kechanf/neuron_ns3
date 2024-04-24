@@ -60,8 +60,25 @@ int main(int argc, char *argv[]) {
     address.SetBase("10.1.0.0", "255.255.0.0");
     Ipv4InterfaceContainer interfaces = address.Assign(devices);
 
+    // Calculate positions for a 5x4 grid within an 80x80 area
+    int rows = 5;
+    int cols = 4;
+    double xSpacing = 80.0 / cols;
+    double ySpacing = 80.0 / rows;
+    int index = 0;
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            if (index < nodes.GetN()) {
+                Ptr<Node> node = nodes.Get(index);
+                Vector position(j * xSpacing + xSpacing / 2, i * ySpacing + ySpacing / 2, 0);
+                node->GetObject<MobilityModel>()->SetPosition(position);
+                index++;
+            }
+        }
+    }
+
     // Setup animation
-    AnimationInterface anim("network-animation.xml");  // File for animation output
+    AnimationInterface anim("network-animation-grid.xml");  // File for animation output
     for (uint32_t i = 0; i < nodes.GetN(); ++i) {
         Ptr<Node> node = nodes.Get(i);
         Vector position = node->GetObject<MobilityModel>()->GetPosition();

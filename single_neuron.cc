@@ -15,7 +15,7 @@ NS_LOG_COMPONENT_DEFINE("Simulation");
 
 class RespondingApp : public Application {
 public:
-    RespondingApp() : m_packetSize(1024), m_totalRx(0), m_threshold(4096) {}
+    RespondingApp() : m_packetSize(1024), m_totalRx(0), m_threshold(4096), m_debugInterval(1.0) {}
     virtual ~RespondingApp() {}
 
     void AddLocalPort(uint16_t localPort) {
@@ -43,9 +43,12 @@ protected:
             m_sockets.push_back(socket);
         }
         std::cout << "Application started, listening on multiple ports." << std::endl;
+
+        Simulator::Schedule(Seconds(m_debugInterval), &RespondingApp::PeriodicDebugOutput, this);
     }
 
     virtual void StopApplication() override {
+        m_stopTime = Simulator::Now();
         for (Ptr<Socket> socket : m_sockets) {
             if (socket) {
                 socket->Close();
@@ -69,20 +72,33 @@ protected:
     }
 
     void SendFeedback() {
-    Ptr<Packet> packet = Create<Packet>(m_packetSize);  // Creating a packet of the specified size
-    Ptr<Socket> socket = m_sockets[0];
+        Ptr<Packet> packet = Create<Packet>(m_packetSize);  // Creating a packet of the specified size
+        Ptr<Socket> socket = m_sockets[0];
 
-    // Assume that each socket in m_sockets corresponds to each address in m_peerAddresses at the same index
-    for (size_t i = 0; i < m_peerAddresses.size(); i++) {
-        Address peerAddress = m_peerAddresses[i];
-        if (socket->SendTo(packet, 0, peerAddress) < 0) {
-            std::cerr << "SendTo failed to " << InetSocketAddress::ConvertFrom(peerAddress).GetIpv4() << std::endl;
-        } else {
-            std::cout << "Sent feedback packet of size " << m_packetSize << " bytes to "
-                      << InetSocketAddress::ConvertFrom(peerAddress).GetIpv4() << std::endl;
+        // Assume that each socket in m_sockets corresponds to each address in m_peerAddresses at the same index
+        for (size_t i = 0; i < m_peerAddresses.size(); i++) {
+            Address peerAddress = m_peerAddresses[i];
+            if (socket->SendTo(packet, 0, peerAddress) < 0) {
+                std::cerr << "SendTo failed to " << InetSocketAddress::ConvertFrom(peerAddress).GetIpv4() << std::endl;
+            } else {
+                std::cout << "Sent feedback packet of size " << m_packetSize << " bytes to "
+                          << InetSocketAddress::ConvertFrom(peerAddress).GetIpv4() << std::endl;
+            }
         }
     }
-}
+
+    void PeriodicDebugOutput() {
+        if (Simulator::Now() + Seconds(m_debugInterval) > m_stopTime) {
+            return;
+        }
+        Ptr<UniformRandomVariable> uv = CreateObject<UniformRandomVariable>();
+        if (uv->GetValue() < 0.5) {  // 50% chance to output a debug message
+            Time now = Simulator::Now();  // Get the current simulation time
+            std::cout << "Time " << now.GetSeconds() << "s: Periodic debug - Total received "
+                      << m_totalRx << " bytes." << std::endl;
+            }
+            Simulator::Schedule(Seconds(m_debugInterval), &RespondingApp::PeriodicDebugOutput, this);
+    }
 
 private:
     std::vector<Ptr<Socket>> m_sockets;  // 网络套接字列表
@@ -91,6 +107,8 @@ private:
     uint32_t m_packetSize;  // 数据包大小
     uint32_t m_totalRx;  // 总接收字节
     uint32_t m_threshold;  // 触发反馈的阈值
+    double m_debugInterval;  // Interval for debug output
+    Time m_stopTime;  // Application stop time
 };
 
 int main(int argc, char *argv[]) {
