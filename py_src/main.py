@@ -9,6 +9,8 @@ import network
 import usocket
 import utime
 from neuron import Neuron
+from pressure import read_hx711
+from echo import read_echo
 
 wifi_essid = 'brain_sys'
 wifi_password = 'penglabpenglab'
@@ -53,18 +55,37 @@ def send_packet(ip, port):
 
 def sender():
     ip = do_connect()
-    oled_dis = OLEDGraphDisplay(scl_pin=5, sda_pin=4)
+    try:
+        oled_dis = OLEDGraphDisplay(scl_pin=5, sda_pin=4)
+        display_switch = True
+    except:
+        display_switch = False
 
     freq = 10
 
     neuron = Neuron(tau=100, dt=100/freq)
 
-    target_ip = '192.168.1.101'  # 目标设备的IP地址
+    target_ip = '192.168.1.100'  # 目标设备的IP地址
     target_port = 12345  # 目标设备的端口号，确保目标设备在此端口监听
-    target_delay = 0.5 # 延时
+    target_delay = 1.0 # 延时
     target_pin = Pin(15, Pin.OUT) # 灯条引脚
     target_fiber = NeoPixel(target_pin, int(target_delay / (1 / freq)))
     neuron.add_fire_target((target_ip, target_port, int(target_delay / (1 / freq)), target_fiber))
+
+    target_ip = '192.168.1.101'  # 目标设备的IP地址
+    target_port = 12345  # 目标设备的端口号，确保目标设备在此端口监听
+    target_delay = 0.5 # 延时
+    target_pin = Pin(14, Pin.OUT) # 灯条引脚
+    target_fiber = NeoPixel(target_pin, int(target_delay / (1 / freq)))
+    neuron.add_fire_target((target_ip, target_port, int(target_delay / (1 / freq)), target_fiber))
+
+    hx711_pin_dt = Pin(0, Pin.IN)  # DT引脚连接到GPIO5
+    hx711_pin_sck = Pin(2, Pin.OUT)  # SCK引脚连接到GPIO4
+
+    echo_trig = Pin(13, Pin.OUT)
+    echo_echo = Pin(12, Pin.IN)
+    echo_trig.off()
+    echo_echo.off()
 
     while True:
         neuron.check_fire_act()
@@ -75,14 +96,22 @@ def sender():
 
         # neuron.decay_potential()
 
-        neuron.rand_fire()
+        weight = read_hx711(hx711_pin_dt, hx711_pin_sck)
+        dist = read_echo(echo_trig, echo_echo)
+        neuron.sensor_fire(weight, dist)
+        # neuron.rand_fire()
 
-        oled_dis.update_display(neuron.potential)
+        if(display_switch):
+            oled_dis.update_display(neuron.potential)
         machine.sleep(int(1000/freq))
 
 def receiver():
     ip = do_connect()
-    oled_dis = OLEDGraphDisplay(scl_pin=12, sda_pin=14)
+    try:
+        oled_dis = OLEDGraphDisplay(scl_pin=5, sda_pin=4)
+        display_switch = True
+    except:
+        display_switch = False
     freq = 10
 
     listen_port = 12345  # 监听端口
@@ -97,11 +126,12 @@ def receiver():
 
         #neuron.rand_fire()
 
-        oled_dis.update_display(neuron.potential, neuron.received, neuron.sent)
+        if(display_switch):
+            oled_dis.update_display(neuron.potential, neuron.received, neuron.sent)
         # 等待一段时间后继续下一次循环
         machine.sleep(int(1000/freq))
 
 
-# sender()
-receiver()
+sender()
+# receiver()
 

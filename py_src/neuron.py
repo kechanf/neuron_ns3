@@ -19,7 +19,7 @@ class Neuron:
         self.dt = dt
         self.threshold = threshold
         self.fire_target = [] # [(target_ip, target_port, delay_time, target_fiber)]
-        self.fire_act_stack = [] # 存储发放动作电位的时间点和地址
+        self.fire_act_stack = [] # 存储发放动作电位
         self.status_led = machine.Pin(2, machine.Pin.OUT)
         self.listen_port = listen_port
 
@@ -30,16 +30,20 @@ class Neuron:
         # 绑定端口，选择一个端口号，确保与发送方端口号一致
         self.sock.bind(('0.0.0.0', listen_port))  # 使用'0.0.0.0'表示监听所有可用网络接口
 
-    def check_fire_act(self):
+    def check_fire_act(self, brightness=20):
         current_fire_act = []
+        for ft in self.fire_target:
+            ft[3].fill((0, 0, 0))
         for act in self.fire_act_stack:
             target_fiber = act[3]
-            target_fiber.fill((0, 0, 0))
             if act[2] <= 0:
-                send_packet(act[0], act[1])
+                send_packet(act[0], act[1]) # addr, port
             else:
-                current_fire_act.append((act[0], act[1], act[2] - 1, target_fiber))
-                target_fiber[len(target_fiber) - act[2]] = (10,10,10)
+                # addr, port, delay_time, target_fiber, strength
+                current_fire_act.append((act[0], act[1], act[2] - 1, target_fiber, act[4]))
+                # 红色表示强信号，绿色表示弱信号
+                color = (int(brightness * act[4]), int(brightness * (1 - act[4])), 0)
+                target_fiber[len(target_fiber) - act[2]] = color
             target_fiber.write()
         self.fire_act_stack = current_fire_act
 
@@ -91,27 +95,42 @@ class Neuron:
             self.fire()
             self.potential = 0
 
-    def fire(self):
+    def fire(self, strength=0.5):
         """
         发放动作电位，并重置电位
         """
         # print("Action potential fired! Transmitting signal...")
-        self.transmit_signal()
+        self.transmit_signal(strength)
         self.status_led.value(0)
         self.sent = True
 
-    def transmit_signal(self):
+    def transmit_signal(self, strength=0.5):
         """
         模拟传递信号到其他神经元的行为（可以根据实际需要进行实现）
         """
         # print("Signal transmitted to other neurons.")
         for target in self.fire_target:
             # print("Transmitting to ", target)
-            self.fire_act_stack.append(target)
+            fire_act = (target[0], target[1], target[2], target[3], strength)
+            self.fire_act_stack.append(fire_act)
 
     def rand_fire(self):
         if(get_random_int(0, 100) < 5):
             self.fire()
+
+    def sensor_fire(self, weight, dist):
+        if(weight > 0.5): # 0.5kg
+            if(weight > 2):
+                strength = 1.0
+            else:
+                strength = (weight - 0.5) / 1.5
+            self.fire(strength)
+        if(dist < 50): # 50cm
+            if(dist < 5):
+                strength = 1.0
+            else:
+                strength = (50 - dist) / 45
+            self.fire(strength)
 
 def send_packet(ip, port):
     # 创建一个socket
