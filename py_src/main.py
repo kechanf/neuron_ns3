@@ -11,9 +11,10 @@ import utime
 from neuron import Neuron
 from pressure import read_hx711
 from echo import read_echo
+from connect_config import do_connect
+import config
 
-wifi_essid = 'brain_sys'
-wifi_password = 'penglabpenglab'
+
 # led = machine.Pin(2, machine.Pin.OUT)
 # pin15 = Pin(15, Pin.OUT)   # 设置引脚GPIO0来驱动 NeoPixels
 # np = NeoPixel(pin15, 5)   # 在GPIO0上创建一个 NeoPixel对象，包含8个灯珠
@@ -27,17 +28,6 @@ wifi_password = 'penglabpenglab'
 
 # tim = Timer(1)
 # tim.init(period=2000, mode=Timer.PERIODIC, callback=lambda t:print(1)) #1次
-
-def do_connect():
-    wlan = network.WLAN(network.STA_IF)
-    wlan.active(True)
-    if not wlan.isconnected():
-        print('connecting to network...')
-        wlan.connect(wifi_essid, wifi_password)
-        while not wlan.isconnected():
-            pass
-    print('network config:', wlan.ifconfig())
-    return wlan.ifconfig()[0]
 
 
 def send_packet(ip, port):
@@ -54,12 +44,16 @@ def send_packet(ip, port):
     sock.close()
 
 def sender():
-    ip = do_connect()
-    try:
-        oled_dis = OLEDGraphDisplay(scl_pin=5, sda_pin=4)
-        display_switch = True
-    except:
+    ip, mac_addr = do_connect()
+    device_info = config.devices.get(mac_addr)
+    print(device_info)
+    if(device_info['oled_scl_pin'] == -1):
         display_switch = False
+    else:
+        oled_dis = OLEDGraphDisplay(scl_pin=device_info["oled_scl_pin"], sda_pin=device_info["oled_sda_pin"])
+        oled_dis.display_ip(ip)
+        display_switch = True
+
 
     freq = 10
 
@@ -67,7 +61,7 @@ def sender():
 
     target_ip = '192.168.1.100'  # 目标设备的IP地址
     target_port = 12345  # 目标设备的端口号，确保目标设备在此端口监听
-    target_delay = 1.0 # 延时
+    target_delay = 0.9 # 延时
     target_pin = Pin(15, Pin.OUT) # 灯条引脚
     target_fiber = NeoPixel(target_pin, int(target_delay / (1 / freq)))
     neuron.add_fire_target((target_ip, target_port, int(target_delay / (1 / freq)), target_fiber))
@@ -79,11 +73,11 @@ def sender():
     target_fiber = NeoPixel(target_pin, int(target_delay / (1 / freq)))
     neuron.add_fire_target((target_ip, target_port, int(target_delay / (1 / freq)), target_fiber))
 
-    hx711_pin_dt = Pin(0, Pin.IN)  # DT引脚连接到GPIO5
-    hx711_pin_sck = Pin(2, Pin.OUT)  # SCK引脚连接到GPIO4
+    hx711_pin_dt = Pin(device_info['hx711_pin_dt'], Pin.IN)  # DT引脚连接到GPIO5
+    hx711_pin_sck = Pin(device_info['hx711_pin_sck'], Pin.OUT)  # SCK引脚连接到GPIO4
 
-    echo_trig = Pin(13, Pin.OUT)
-    echo_echo = Pin(12, Pin.IN)
+    echo_trig = Pin(device_info['echo_trig'], Pin.OUT)
+    echo_echo = Pin(device_info['echo_echo'], Pin.IN)
     echo_trig.off()
     echo_echo.off()
 
@@ -106,12 +100,15 @@ def sender():
         machine.sleep(int(1000/freq))
 
 def receiver():
-    ip = do_connect()
-    try:
-        oled_dis = OLEDGraphDisplay(scl_pin=5, sda_pin=4)
-        display_switch = True
-    except:
+    ip, mac_addr = do_connect()
+    device_info = config.devices.get(mac_addr)
+    if(device_info['oled_scl_pin'] == -1):
         display_switch = False
+    else:
+        oled_dis = OLEDGraphDisplay(scl_pin=device_info["oled_scl_pin"], sda_pin=device_info["oled_sda_pin"])
+        oled_dis.display_ip(ip)
+        display_switch = True
+
     freq = 10
 
     listen_port = 12345  # 监听端口
@@ -132,6 +129,6 @@ def receiver():
         machine.sleep(int(1000/freq))
 
 
-sender()
-# receiver()
+# sender()
+receiver()
 

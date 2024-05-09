@@ -2,16 +2,23 @@ from machine import Pin, I2C
 import ssd1306
 from rand import get_random_int
 
+
 class OLEDGraphDisplay:
     def __init__(self, scl_pin, sda_pin, oled_width=128, oled_height=64):
         self.i2c = I2C(scl=Pin(scl_pin), sda=Pin(sda_pin))
         self.oled = ssd1306.SSD1306_I2C(oled_width, oled_height, self.i2c)
         self.x = 0
-        self.old_y = 63 - self.get_data()
+        self.old_y = 63
         self.received = False
         self.sent = False
         self.wifi_connected = True
         self.operating_normally = True
+
+    def display_ip(self, ip = None):
+        # Second row: IP Address
+        self.oled.fill_rect(0, 16, 128, 16, 0)
+        self.oled.text("IP:  ..." + ip[8:], 0, 16, 1)
+        self.oled.show()
 
     def get_data(self):
         return get_random_int(0, 30)
@@ -38,9 +45,9 @@ class OLEDGraphDisplay:
         self.oled.show()
 
     def draw_axes(self):
-        self.oled.fill_rect(0, 16, 128, 63, 0)
+        self.oled.fill_rect(0, 32, 128, 63, 0)
         self.oled.line(0, 63, 127, 63, 1)
-        self.oled.line(0, 16, 0, 63, 1)
+        self.oled.line(0, 32, 0, 63, 1)
         self.oled.show()
 
     def get_status(self, received=False, sent=False, wifi_connected=True, operating_normally=True):
@@ -51,7 +58,7 @@ class OLEDGraphDisplay:
 
     def update_display(self, y, received=False, sent=False, wifi_connected=True, operating_normally=True):
         # y = 63 - self.get_data()
-        p = 0.75
+        p = 0.5
         y = 63 - int(y*63*p)
         self.update_status(received, sent, wifi_connected, operating_normally)
 
